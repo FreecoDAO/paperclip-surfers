@@ -1,6 +1,7 @@
 import { isValidElement, useEffect, useId, useState, type ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import DOMPurify from "dompurify";
 import { cn } from "../lib/utils";
 import { useTheme } from "../context/ThemeContext";
 import { mentionChipInlineStyle, parseMentionChipHref } from "../lib/mention-chips";
@@ -57,7 +58,12 @@ function MermaidDiagramBlock({ source, darkMode }: { source: string; darkMode: b
         });
         const rendered = await mermaid.render(`paperclip-mermaid-${renderId}`, source);
         if (!active) return;
-        setSvg(rendered.svg);
+        // Sanitize the SVG output to prevent XSS attacks
+        const sanitized = DOMPurify.sanitize(rendered.svg, {
+          ALLOWED_TAGS: ["svg", "g", "text", "tspan", "line", "rect", "circle", "ellipse", "path", "polygon", "polyline", "defs", "style", "title", "desc", "marker", "linearGradient", "stop", "image", "use", "a", "foreignObject"],
+          ALLOWED_ATTR: ["x", "y", "width", "height", "class", "id", "d", "fill", "stroke", "stroke-width", "text-anchor", "dominant-baseline", "cx", "cy", "r", "x1", "y1", "x2", "y2", "points", "viewBox", "xmlns", "preserveAspectRatio", "role", "aria-label", "transform", "style", "href", "xlink:href", "refX", "refY", "markerWidth", "markerHeight", "markerUnits", "orient", "overflow", "font-family", "font-size", "font-style", "font-weight", "text-decoration", "opacity", "marker-end", "marker-start", "clip-path"],
+        });
+        setSvg(sanitized);
       })
       .catch((err) => {
         if (!active) return;
