@@ -65,9 +65,26 @@ export function deriveAuthTrustedOrigins(config: Config): string[] {
   return Array.from(trustedOrigins);
 }
 
+function validateAuthSecret(secret: string, deploymentMode: string): void {
+  // In production (authenticated mode), enforce that secrets are not defaults
+  if (deploymentMode === "authenticated") {
+    if (secret === "paperclip-dev-secret") {
+      throw new Error(
+        "SECURITY ERROR: Default auth secret detected in authenticated (production) mode. " +
+        "Set BETTER_AUTH_SECRET or PAPERCLIP_AGENT_JWT_SECRET environment variable to a strong random secret. " +
+        "Example: openssl rand -base64 32"
+      );
+    }
+  }
+}
+
 export function createBetterAuthInstance(db: Db, config: Config, trustedOrigins?: string[]): BetterAuthInstance {
   const baseUrl = config.authBaseUrlMode === "explicit" ? config.authPublicBaseUrl : undefined;
   const secret = process.env.BETTER_AUTH_SECRET ?? process.env.PAPERCLIP_AGENT_JWT_SECRET ?? "paperclip-dev-secret";
+  
+  // Validate auth secret for production
+  validateAuthSecret(secret, config.deploymentMode);
+  
   const effectiveTrustedOrigins = trustedOrigins ?? deriveAuthTrustedOrigins(config);
 
   const publicUrl = process.env.PAPERCLIP_PUBLIC_URL ?? baseUrl;

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { Db } from "@paperclipai/db";
 import type { DeploymentExposure, DeploymentMode } from "@paperclipai/shared";
 import type { StorageService } from "./storage/types.js";
-import { httpLogger, errorHandler } from "./middleware/index.js";
+import { httpLogger, errorHandler, securityHeadersMiddleware, authRateLimiter, apiRateLimiter, uploadRateLimiter } from "./middleware/index.js";
 import { actorMiddleware } from "./middleware/auth.js";
 import { boardMutationGuard } from "./middleware/board-mutation-guard.js";
 import { privateHostnameGuard, resolvePrivateHostnameAllowSet } from "./middleware/private-hostname-guard.js";
@@ -83,6 +83,9 @@ export async function createApp(
 ) {
   const app = express();
 
+  // Security headers must be applied early
+  app.use(securityHeadersMiddleware({ publicUrl: process.env.PAPERCLIP_PUBLIC_URL }));
+
   app.use(express.json({
     // Company import/export payloads can inline full portable packages.
     limit: "10mb",
@@ -91,6 +94,10 @@ export async function createApp(
     },
   }));
   app.use(httpLogger);
+
+  // Apply rate limiting to API endpoints
+  app.use("/api/", apiRateLimiter);
+
   const privateHostnameGateEnabled =
     opts.deploymentMode === "authenticated" && opts.deploymentExposure === "private";
   const privateHostnameAllowSet = resolvePrivateHostnameAllowSet({
@@ -128,7 +135,8 @@ export async function createApp(
     });
   });
   if (opts.betterAuthHandler) {
-    app.all("/api/auth/*authPath", opts.betterAuthHandler);
+    // Apply auth rate limiting to login/signup endpoints
+    app.all("/api/auth/*authPath", authRateLimiter, opts.betterAuthHandler);
   }
   app.use(llmRoutes(db));
 

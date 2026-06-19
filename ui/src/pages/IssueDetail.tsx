@@ -603,10 +603,11 @@ export function IssueDetail() {
 
   const copyIssueToClipboard = async () => {
     if (!issue) return;
+    // Safe HTML entity decoding without using innerHTML
     const decodeEntities = (text: string) => {
-      const el = document.createElement("textarea");
-      el.innerHTML = text;
-      return el.value;
+      const textarea = document.createElement("textarea");
+      textarea.textContent = text;
+      return textarea.innerHTML;
     };
     const title = decodeEntities(issue.title);
     const body = decodeEntities(issue.description ?? "");

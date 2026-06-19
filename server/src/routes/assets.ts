@@ -8,6 +8,7 @@ import type { StorageService } from "../storage/types.js";
 import { assetService, logActivity } from "../services/index.js";
 import { isAllowedContentType, MAX_ATTACHMENT_BYTES } from "../attachment-types.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { uploadRateLimiter } from "../middleware/rate-limit.js";
 const SVG_CONTENT_TYPE = "image/svg+xml";
 const ALLOWED_COMPANY_LOGO_CONTENT_TYPES = new Set([
   "image/png",
@@ -107,7 +108,7 @@ export function assetRoutes(db: Db, storage: StorageService) {
     });
   }
 
-  router.post("/companies/:companyId/assets/images", async (req, res) => {
+  router.post("/companies/:companyId/assets/images", uploadRateLimiter, async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
 
@@ -210,7 +211,7 @@ export function assetRoutes(db: Db, storage: StorageService) {
     });
   });
 
-  router.post("/companies/:companyId/logo", async (req, res) => {
+  router.post("/companies/:companyId/logo", uploadRateLimiter, async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
 
